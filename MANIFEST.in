@@ -1,0 +1,30 @@
+include AUTHORS.md
+include CONTRIBUTING.md
+include CHANGELOG.md
+include LICENSE
+include README.md
+include CODE_OF_CONDUCT.md
+include COMMIT_CONVENTION.md
+include pyproject.toml
+include .gitattributes
+include .editorconfig
+include .readthedocs.yml
+include .pre-commit-config.yaml
+
+recursive-include .cursor *
+recursive-include .github *
+recursive-include .vscode *
+recursive-include scripts *
+recursive-include src *
+recursive-include docs *
+recursive-include tests *
+
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * *.so
+recursive-exclude * .DS_Store
+recursive-exclude .git *
+recursive-exclude venv *
+recursive-exclude dist *
+recursive-exclude build *
+recursive-exclude *.egg-info *

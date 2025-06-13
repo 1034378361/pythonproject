@@ -1,0 +1,88 @@
+---
+description: Implements CI/CD pipelines using GitHub Actions or GitLab CI for automated building, testing, and deployment processes.
+globs: [".github/workflows/**/*.*", ".gitlab-ci.yml"]
+alwaysApply: false
+---
+# CI/CD实施指南
+
+## 项目配置的工作流
+
+本项目已经在`.github/workflows`目录中配置了以下GitHub Actions工作流：
+
+1. **测试工作流 (test.yml)**：
+   - 触发条件：推送到主分支、PR到主分支，或手动触发
+   - 功能：在多个Python版本上运行自动化测试、代码风格检查和覆盖率分析
+   - 报告：自动上传测试覆盖率到Codecov
+
+2. **发布工作流 (publish.yml)**：
+   - 触发条件：推送以"v"开头的标签或手动触发
+   - 功能：生成变更日志、构建包并发布到PyPI、创建GitHub Release
+
+3. **自动更新CHANGELOG工作流 (changelog.yml)**：
+   - 触发条件：标签推送、PR合并到主分支，或手动触发
+   - 功能：自动生成和更新CHANGELOG.md文件
+
+## 修改现有工作流的注意事项
+
+在修改这些工作流时，请遵循以下原则：
+
+1. **版本兼容性**：
+   - 测试工作流已配置支持Python 3.8-3.11版本
+   - 修改时需保持对这些版本的支持，或更新支持的版本列表
+
+2. **代码质量检查**：
+   - 现有流程使用ruff、black和isort进行代码质量检查
+   - 在修改时应保留这些检查，或使用功能等效的替代工具
+
+3. **版本管理**：
+   - 版本号在`src/pythonproject/_version.py`中定义
+   - 发布流程会临时更新此文件，然后恢复原状
+
+4. **变更日志生成**：
+   - 项目使用自定义脚本`scripts/generate_changelog.py`生成变更日志
+   - 修改相关工作流时需确保此脚本仍能正常工作
+
+## 最佳实践
+
+在维护或扩展这些工作流时，请考虑以下最佳实践：
+
+- **依赖缓存**：使用GitHub Actions的缓存功能加速依赖安装
+- **并行测试**：在matrix策略中添加更多维度以并行运行测试
+- **环境变量**：敏感信息应使用GitHub Secrets而非硬编码
+- **条件执行**：使用条件语句避免不必要的工作流执行
+- **工作流优化**：定期审查工作流执行时间，优化长时间运行的步骤
+- **自动版本管理**：保持自动版本管理和变更日志生成功能的正常运行
+
+## 添加新工作流的指导
+
+如需添加新的工作流，请确保：
+
+1. 工作流名称清晰表达其功能
+2. 适当设置触发条件，避免不必要的执行
+3. 与现有工作流协调工作，而非重复功能
+4. 在README中更新CI/CD相关文档
+5. 测试工作流在不同条件下的行为
+
+## 本地开发与CI/CD的关系
+
+本项目通过Makefile提供了与CI/CD环境对应的本地命令：
+
+- `make test` - 运行测试，对应CI测试流程
+- `make lint` - 运行代码质量检查，对应CI的lint步骤
+- `make clean` - 清理构建产物
+- `make install-dev` - 安装开发依赖，类似CI环境安装步骤
+
+在提交代码前，建议至少运行：
+
+```bash
+make lint  # 检查代码风格
+make test  # 运行测试确保功能正常
+```
+
+## 关键GitHub Secrets配置
+
+发布工作流需要以下GitHub Secrets正确配置：
+
+- `PYPI_USERNAME` - PyPI上传用户名
+- `PYPI_PASSWORD` - PyPI上传密码/令牌
+- `CODECOV_TOKEN` - 用于上传覆盖率报告

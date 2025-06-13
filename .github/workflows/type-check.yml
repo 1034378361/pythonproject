@@ -1,0 +1,35 @@
+name: 深度类型检查
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # 每周一运行
+  workflow_dispatch:
+    inputs:
+      python-version:
+        description: 'Python版本'
+        required: false
+        default: '3.12'
+        type: string
+      full-report:
+        description: '生成完整报告'
+        required: false
+        default: true
+        type: boolean
+
+# 权限配置
+permissions:
+  contents: read  # 只读权限即可
+  checks: write   # 允许上传检查结果
+
+env:
+  PYTHON_DEFAULT: "3.12"
+  SOURCE_DIR: src
+  MIN_COVERAGE: 70  # 最低类型覆盖率目标
+
+jobs:
+  deep-type-check:
+    name: 深度类型检查与报告
+    uses: ./.github/workflows/reusable-type-check.yml
+    with:
+      python-version: ${{ github.event.inputs.python-version || '3.12' }}
+      full-report: ${{ github.event.inputs.full-report || true }}

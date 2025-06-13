@@ -1,0 +1,171 @@
+name: 可复用变更日志生成
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        description: '更新模式 (incremental/full)'
+        required: false
+        type: string
+        default: 'incremental'
+      config-file:
+        description: '配置文件路径'
+        required: false
+        type: string
+        default: '.changelog.yml'
+      version:
+        description: '版本号 (如 1.0.0)'
+        required: false
+        type: string
+    outputs:
+      release-notes:
+        description: '发布说明'
+        value: ${{ jobs.changelog.outputs.release_notes }}
+      version:
+        description: '版本号'
+        value: ${{ jobs.changelog.outputs.version }}
+      has-changes:
+        description: '是否有变更'
+        value: ${{ jobs.changelog.outputs.has_changes }}
+
+jobs:
+  changelog:
+    name: 生成变更日志
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release_notes: ${{ steps.get_notes.outputs.notes }}
+      version: ${{ steps.extract_info.outputs.version }}
+      has_changes: ${{ steps.check_changes.outputs.changed }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: 设置Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+          cache: pip
+
+      - name: 缓存Git历史
+        uses: actions/cache@v4
+        id: git-cache
+        with:
+          path: |
+            .git/objects/
+            .git/refs/
+          key: ${{ runner.os }}-git-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-git-
+
+      - name: 缓存脚本输出
+        uses: actions/cache@v4
+        id: changelog-cache
+        with:
+          path: .changelog-cache/
+          key: changelog-${{ hashFiles('scripts/generate_changelog.py', inputs.config-file) }}-${{ github.sha }}
+          restore-keys: |
+            changelog-${{ hashFiles('scripts/generate_changelog.py', inputs.config-file) }}-
+
+      - name: 创建缓存目录
+        run: mkdir -p .changelog-cache
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install pdm
+          pdm install -G changelog || pip install gitpython pyyaml
+
+
+      - name: 设置版本号
+        id: set_version
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            # 如果是标签，从标签获取版本号
+            if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+              VERSION=${GITHUB_REF#refs/tags/v}
+              echo "version=${VERSION}" >> $GITHUB_OUTPUT
+            else
+              # 从最近的标签获取版本号
+              VERSION=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 | sed 's/^v//')
+              if [ -z "$VERSION" ]; then
+                VERSION="0.1.0"
+              fi
+              echo "version=${VERSION}" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: 更新CHANGELOG
+        run: |
+          # 使用缓存加速脚本执行
+          CACHE_FILE=".changelog-cache/last_run.json"
+          CACHE_ARGS=""
+
+          if [ -f "$CACHE_FILE" ]; then
+            CACHE_ARGS="--cache-file $CACHE_FILE"
+          fi
+
+          if [ "${{ inputs.mode }}" == "full" ]; then
+            python scripts/generate_changelog.py --since $(git rev-list --max-parents=0 HEAD) --config "${{ inputs.config-file }}" $CACHE_ARGS --verbose
+          else
+            python scripts/generate_changelog.py --config "${{ inputs.config-file }}" $CACHE_ARGS --verbose
+          fi
+
+          # 更新缓存
+          echo "{\"last_run\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\", \"sha\": \"${{ github.sha }}\"}" > "$CACHE_FILE"
+
+      - name: 检查CHANGELOG是否有更改
+        id: check_changes
+        run: |
+          if git diff --exit-code CHANGELOG.md; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 提取更新信息
+        id: extract_info
+        run: |
+          # 提取最新版本号
+          VERSION=$(grep -m 1 -o '## [0-9]\+\.[0-9]\+\.[0-9]\+' CHANGELOG.md | head -1 | sed 's/## //')
+          if [ -n "$VERSION" ]; then
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          else
+            # 如果找不到版本号，使用上一步设置的版本号
+            echo "version=${{ steps.set_version.outputs.version }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 为发布生成单独的说明
+        if: steps.check_changes.outputs.changed == 'true'
+        run: |
+          # 提取当前版本的变更记录
+          VERSION="${{ steps.extract_info.outputs.version }}"
+          sed -n "/^## ${VERSION}/,/^## /p" CHANGELOG.md | sed '$d' > RELEASE_NOTES.md
+
+      - name: 获取发布说明
+        id: get_notes
+        run: |
+          if [ -f RELEASE_NOTES.md ]; then
+            NOTES=$(cat RELEASE_NOTES.md)
+            echo "notes<<EOF" >> $GITHUB_OUTPUT
+            echo "$NOTES" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "notes=Release v${{ steps.extract_info.outputs.version }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 提交CHANGELOG更改
+        if: steps.check_changes.outputs.changed == 'true'
+        uses: stefanzweifel/git-auto-commit-action@v6.0.1
+        with:
+          commit_message: "docs: 更新 CHANGELOG"
+          file_pattern: CHANGELOG.md
+          commit_user_name: GitHub Actions
+          commit_user_email: actions@github.com
+          commit_author: GitHub Actions <actions@github.com>

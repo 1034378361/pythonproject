@@ -1,0 +1,29 @@
+repos:
+  # 基本格式检查（精简保留常用的）
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      # - id: check-yaml       # 检查YAML文件格式
+      - id: check-json       # 检查JSON文件格式
+      - id: check-toml       # 检查TOML文件格式
+      - id: check-ast        # 检查Python语法错误
+      - id: detect-private-key      # 检查私钥泄露
+      - id: trailing-whitespace     # 清除行尾空格
+      - id: end-of-file-fixer       # 文件末尾空行
+      - id: check-merge-conflict    # 合并冲突标记
+      - id: debug-statements        # 调试语句检查
+      - id: check-added-large-files # 检查大文件（默认500kB）
+        args: ['--maxkb=1000']      # 增加到1MB限制
+
+  # Python代码质量工具（ruff = 语法 + 风格 + 自动格式化）
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.13
+    hooks:
+      - id: ruff-check
+        args: [
+          "--fix",
+          "--select=E,F,W",
+          "--ignore=E203,E501,E401,E402,F401"
+        ]
+
+      - id: ruff-format

@@ -1,0 +1,23 @@
+[safe]
+	directory = D:/OneDrive - yzuzhny/study/Modanaly
+	directory = D:/OneDrive - yzuzhny/study/yunpingtai
+	directory = D:/OneDrive - yzuzhny/study
+	directory = D:/OneDrive/OneDriveForBusiness/study/yunpingtai
+	directory = D:/OneDrive/OneDriveForBusiness/study/Modanaly
+	directory = D:/OneDrive/OneDriveForBusiness/study/fine_tuning
+	directory = D:/AirportDetect
+	directory = D:/AirportDetect/ArUcoDetectProject
+	directory = D:/OneDrive_yzuzhny/study/Python_Template/cookiecutter-pypackage
+[user]
+	email = zyq1034378361@gmail.com
+	name = ZHOU YuanQi
+[difftool]
+	prompt = false
+[diff]
+	tool = bc
+[difftool "bc5"]
+	path = C:\\Program Files\\Beyond Compare 5\\BCompare.exe
+[http]
+	postBuffer = 524288000
+[credential]
+	helper = "!f() { /home/vscode/.vscode-server/bin/258e40fedc6cb8edf399a463ce3a9d32e7e1f6f3/node /tmp/vscode-remote-containers-53f0826a-45ec-421d-a130-aba95b0ba449.js git-credential-helper $*; }; f"

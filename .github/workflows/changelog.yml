@@ -1,0 +1,38 @@
+name: 自动更新CHANGELOG
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '更新模式'
+        required: true
+        default: 'incremental'
+        type: choice
+        options:
+          - incremental
+          - full
+      config:
+        description: '配置文件路径 (可选)'
+        required: false
+        default: '.changelog.yml'
+        type: string
+
+# 权限配置
+permissions:
+  contents: write  # 允许更新CHANGELOG
+
+jobs:
+  update-changelog:
+    if: >
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true) ||
+      github.event_name == 'workflow_dispatch'
+    name: 更新变更日志
+    uses: ./.github/workflows/reusable-changelog.yml
+    with:
+      mode: ${{ github.event.inputs.mode || 'incremental' }}
+      config-file: ${{ github.event.inputs.config || '.changelog.yml' }}

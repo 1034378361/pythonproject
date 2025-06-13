@@ -1,0 +1,121 @@
+---
+description: 定义Python项目中的文档标准和实践，包括API文档、代码注释和README文件，提高代码可读性和可维护性。
+globs: ["**/*.py"]
+alwaysApply: true
+---
+# Python文档实践
+
+## 核心原则
+
+- 代码应该是自描述的，但良好的文档是必不可少的
+- 文档应该帮助读者理解代码的目的和使用方法
+- 文档应保持更新，反映代码的当前状态
+
+## 项目文档文件
+
+本项目使用以下文档文件：
+
+- `README.rst`：项目概述、安装指南和基本用法
+- `CONTRIBUTING.rst`：贡献指南
+- `CHANGELOG.md`：版本变更日志
+- `LICENSE`：开源许可证信息
+- `AUTHORS.rst`：项目贡献者列表
+- `CODE_OF_CONDUCT.rst`：行为准则
+- `docs/`：使用Sphinx生成的详细文档
+
+## 文件级别文档
+
+每个Python文件应包含：
+
+- 文件开头的文档字符串，描述模块的用途
+- 必要的导入说明
+- 模块级常量声明及其用途
+
+## 函数和方法文档
+
+所有公共函数和方法都应该有Google风格文档字符串，包括：
+
+- 简短描述（一行）
+- 详细描述（可选，多行）
+- 参数说明（包括类型和用途）
+- 返回值说明
+- 可能引发的异常
+- 使用示例（适当时）
+
+项目使用`pydocstyle`检查文档字符串的格式。
+
+## 类文档
+
+类文档应包括：
+
+- 类的用途和行为
+- 主要属性介绍
+- 初始化参数说明
+- 公共方法概述
+- 继承和组合关系（如相关）
+
+## 文档格式示例
+
+### 模块文档
+```python
+"""提供处理用户配置的实用工具。
+
+此模块实现了配置加载、验证和管理功能，
+支持从文件、环境变量和默认值读取配置。
+"""
+```
+
+### 函数文档
+```python
+def parse_config(config_path: str, env_prefix: str = None) -> Dict[str, Any]:
+    """加载并解析配置。
+
+    从指定的配置文件加载设置，并可选地从环境变量中覆盖值。
+    环境变量将覆盖配置文件中的值。
+
+    Args:
+        config_path: 配置文件的路径
+        env_prefix: 环境变量前缀，如果指定，将从具有此前缀的
+            环境变量中加载设置
+
+    Returns:
+        包含所有配置选项的字典
+
+    Raises:
+        FileNotFoundError: 如果配置文件不存在
+        ValueError: 如果配置文件格式无效
+    """
+```
+
+### 类文档
+```python
+class ConfigManager:
+    """管理应用程序配置。
+
+    此类提供加载、验证和访问配置选项的方法，
+    支持多种配置源，包括文件和环境变量。
+
+    Attributes:
+        config: 当前配置的字典
+        config_path: 使用的配置文件路径
+        env_prefix: 用于环境变量的前缀
+
+    Examples:
+        >>> config = ConfigManager("settings.yml")
+        >>> debug_mode = config.get("debug", False)
+    """
+```
+
+## 文档生成
+
+项目使用Sphinx和Read the Docs主题生成HTML文档：
+
+- 使用`make docs`构建文档
+- 文档源文件位于`docs/`目录
+- 生成的HTML位于`docs/_build/html/`
+
+## API参考文档
+
+- 使用`sphinx-apidoc`自动生成API参考文档
+- 对于每个模块/类/函数，包含其责任和用法
+- 包括所有公共API的类型信息和参数描述

@@ -1,0 +1,127 @@
+name: 可复用测试工作流
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: 'Python版本'
+        required: false
+        type: string
+        default: '3.12'
+      coverage-threshold:
+        description: '覆盖率阈值'
+        required: false
+        type: number
+        default: 85
+    outputs:
+      tests_failed:
+        description: '测试是否失败'
+        value: ${{ jobs.test.outputs.tests_failed }}
+      coverage:
+        description: '代码覆盖率'
+        value: ${{ jobs.test.outputs.coverage }}
+
+env:
+  SOURCE_DIR: src
+  TEST_DIR: tests
+
+jobs:
+  test:
+    name: 测试 Python ${{ inputs.python-version }}
+    runs-on: ubuntu-latest
+    outputs:
+      tests_failed: ${{ steps.test_run.outputs.tests_failed }}
+      coverage: ${{ steps.test_run.outputs.coverage }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: 设置 Python ${{ inputs.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: pip
+
+    # 缓存PDM和依赖
+    - name: 缓存PDM
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.pdm
+          .pdm-build
+          .venv
+        key: ${{ runner.os }}-pdm-${{ inputs.python-version }}-${{ hashFiles('pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pdm-${{ inputs.python-version }}-
+
+    # 缓存pytest
+    - name: 缓存pytest
+      uses: actions/cache@v4
+      with:
+        path: |
+          .pytest_cache
+          ~/.cache/pytest
+        key: ${{ runner.os }}-pytest-${{ inputs.python-version }}-${{ hashFiles('pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pytest-${{ inputs.python-version }}-
+
+    - name: 安装 PDM
+      run: |
+        python -m pip install --upgrade pip
+        pip install pdm
+
+    - name: 使用 PDM 安装测试依赖
+      run: |
+        pdm install -G test
+
+
+    - name: 运行测试
+      id: test_run
+      run: |
+        threshold=${{ inputs.coverage-threshold || 85 }}
+        if [ -f pyproject.toml ]; then
+          val=$(grep -Po '(?<=cov-fail-under=)\\d+' pyproject.toml | head -1)
+          if [ -n "$val" ]; then threshold=$val; fi
+        fi
+        pdm run pytest \
+          --cov=$SOURCE_DIR \
+          --cov-report=term \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-fail-under=$threshold \
+          --junitxml=junit/test-results.xml \
+          $TEST_DIR/ || echo "tests_failed=true" >> $GITHUB_OUTPUT
+
+        # 提取覆盖率数据
+        if [ -f coverage.xml ]; then
+          COVERAGE=$(grep -o 'line-rate="[0-9].[0-9]*"' coverage.xml | head -1 | grep -o '[0-9].[0-9]*')
+          COVERAGE_PCT=$(echo "$COVERAGE * 100" | bc)
+          echo "coverage=${COVERAGE_PCT}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: 上传测试覆盖率报告
+      uses: codecov/codecov-action@v4.5.0
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: ./coverage.xml
+        fail_ci_if_error: false
+
+    - name: 上传测试报告
+      if: always()
+      uses: actions/upload-artifact@v4.3.1
+      with:
+        name: test-results-${{ inputs.python-version }}
+        path: |
+          junit/test-results.xml
+          htmlcov/
+        retention-days: 7
+
+    - name: 上传pytest日志
+      if: always()
+      uses: actions/upload-artifact@v4.3.1
+      with:
+        name: pytest-log-${{ inputs.python-version }}
+        path: .pytest_cache/
+        retention-days: 7

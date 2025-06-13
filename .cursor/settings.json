@@ -1,0 +1,17 @@
+{
+  "editor.formatOnSave": true,
+  "editor.rulers": [88],
+  "python.linting.enabled": true,
+  "python.linting.flake8Enabled": true,
+  "python.linting.pylintEnabled": true,
+  "python.formatting.provider": "black",
+  "python.formatting.blackArgs": ["--line-length", "88"],
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/*.pyc": true
+  },
+  "workbench.colorCustomizations": {
+    "editorRuler.foreground": "#3d3d3d"
+  }
+}

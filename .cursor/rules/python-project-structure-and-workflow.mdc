@@ -1,0 +1,97 @@
+---
+description: 项目结构和工作流规范，定义了标准目录结构、开发流程、提交规范和版本发布流程。
+globs: ["**/*.*"]
+alwaysApply: true
+---
+# PythonProject 项目结构与工作流
+
+## 项目目录结构
+
+当前项目模板使用以下目录结构：
+
+- `src/pythonproject/`: 源代码包
+  - `__init__.py`: 包初始化文件
+  - `_version.py`: 项目版本信息
+  - `utils/`: 实用工具函数
+  - `cli.py`: 命令行接口（如果启用）
+  - `pythonproject.py`: 主模块
+- `tests/`: 测试文件
+  - `conftest.py`: pytest共享配置
+  - `test_*.py`: 测试模块
+- `docs/`: 项目文档
+- `scripts/`: 辅助脚本，包括CHANGELOG生成等
+- `.github/workflows/`: GitHub Actions工作流配置
+  - `test.yml`: 测试工作流
+  - `publish.yml`: 发布工作流
+  - `changelog.yml`: 变更日志自动更新工作流
+
+## 关键配置文件
+
+- `pyproject.toml`: 项目依赖、构建配置和工具配置
+- `Makefile`: 常用开发命令
+- `.pre-commit-config.yaml`: 预提交钩子配置
+- `CHANGELOG.md`: 变更历史记录
+- `README.rst`: 项目说明文档
+- `LICENSE`: 开源许可证
+- `tox.ini`: tox配置（多环境测试）
+
+## 开发流程
+
+开发新功能时，请遵循以下步骤：
+
+1. 创建新分支 `git checkout -b feature/功能名称`
+2. 实现功能并添加测试
+3. 确保测试通过 `make test`
+4. 运行代码质量检查 `make lint`
+5. 提交代码并创建PR
+
+## 项目命令（通过Makefile）
+
+项目提供以下常用命令：
+
+```bash
+# 安装开发依赖
+make install-dev
+
+# 运行测试
+make test
+
+# 代码格式和质量检查
+make lint
+
+# 运行格式化工具
+make format
+
+# 构建文档
+make docs
+```
+
+## 提交规范
+
+使用以下格式提交代码：
+
+- `feat`: 新功能
+- `fix`: 修复bug
+- `docs`: 仅文档变更
+- `style`: 不影响代码含义的变更（空白、格式化等）
+- `refactor`: 代码重构（既不修复bug也不添加功能）
+- `perf`: 性能改进
+- `test`: 添加或修正测试
+- `chore`: 构建过程或辅助工具变动
+
+## 版本发布流程
+
+发布新版本时：
+
+1. 确保所有测试通过且代码经过审查
+2. 更新版本号（在src/pythonproject/_version.py中）
+3. 推送标签 `git tag v版本号`
+4. 推送到远程 `git push && git push --tags`
+5. GitHub Actions将自动构建并发布到PyPI
+
+## 模块化设计原则
+
+- 实现单一责任原则，每个模块只负责一个功能
+- 使用类型注解增强代码可读性
+- 保持模块间低耦合度，减少相互依赖
+- 编写测试来验证模块功能
