@@ -44,8 +44,7 @@ jobs:
         python-version: ${{ inputs.python-version }}
         cache: pip
 
-    # 缓存PDM和依赖
-    - name: 缓存PDM
+    - name: 缓存 PDM
       uses: actions/cache@v4
       with:
         path: |
@@ -56,8 +55,7 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-pdm-${{ inputs.python-version }}-
 
-    # 缓存pytest
-    - name: 缓存pytest
+    - name: 缓存 pytest
       uses: actions/cache@v4
       with:
         path: |
@@ -72,36 +70,52 @@ jobs:
         python -m pip install --upgrade pip
         pip install pdm
 
-    - name: 使用 PDM 安装测试依赖
-      run: |
-        pdm install -G test
+    - name: 安装测试依赖
+      run: pdm install -G test
 
-
-    - name: 运行测试
+    - name: 运行测试并生成覆盖率报告
       id: test_run
       run: |
-        threshold=${{ inputs.coverage-threshold || 85 }}
+        set -e
+        echo "tests_failed=false" >> $GITHUB_OUTPUT
+
+        # 动态获取阈值
+        threshold=${{ inputs.coverage-threshold }}
         if [ -f pyproject.toml ]; then
-          val=$(grep -Po '(?<=cov-fail-under=)\\d+' pyproject.toml | head -1)
+          val=$(grep -Po '(?<=cov-fail-under\s*=\s*)\d+' pyproject.toml | head -1)
           if [ -n "$val" ]; then threshold=$val; fi
         fi
-        pdm run pytest \
+
+        # 执行 pytest 测试
+        if ! pdm run pytest \
           --cov=$SOURCE_DIR \
           --cov-report=term \
           --cov-report=xml \
           --cov-report=html \
           --cov-fail-under=$threshold \
           --junitxml=junit/test-results.xml \
-          $TEST_DIR/ || echo "tests_failed=true" >> $GITHUB_OUTPUT
+          $TEST_DIR/
+        then
+          echo "tests_failed=true" >> $GITHUB_OUTPUT
+        fi
 
-        # 提取覆盖率数据
+        # 提取覆盖率值
         if [ -f coverage.xml ]; then
-          COVERAGE=$(grep -o 'line-rate="[0-9].[0-9]*"' coverage.xml | head -1 | grep -o '[0-9].[0-9]*')
-          COVERAGE_PCT=$(echo "$COVERAGE * 100" | bc)
+          COVERAGE=$(grep -o 'line-rate="[0-9.]*"' coverage.xml | grep -o '[0-9.]*' | head -1)
+          COVERAGE_PCT=$(echo "$COVERAGE * 100" | bc | awk '{printf "%.2f", $0}')
           echo "coverage=${COVERAGE_PCT}" >> $GITHUB_OUTPUT
         fi
 
-    - name: 上传测试覆盖率报告
+    - name: 确认 coverage.xml 是否存在
+      run: |
+        if [ -f coverage.xml ]; then
+          echo "coverage.xml 存在"
+        else
+          echo "❌ coverage.xml 不存在"
+          exit 1
+        fi
+
+    - name: 上传测试覆盖率报告到 Codecov
       uses: codecov/codecov-action@v4.5.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -118,7 +132,7 @@ jobs:
           htmlcov/
         retention-days: 7
 
-    - name: 上传pytest日志
+    - name: 上传 pytest 缓存
       if: always()
       uses: actions/upload-artifact@v4.3.1
       with:
