@@ -1,0 +1,43 @@
+---
+description: Specifies dependency management using Rye and virtual environments for consistent and isolated project dependencies.
+globs: ["**/pyproject.toml"]
+alwaysApply: true
+---
+# Python依赖管理
+
+## 项目依赖结构
+
+项目使用pyproject.toml管理依赖，主要分为以下几类：
+
+1. **核心依赖** - 在`[project].dependencies`中定义，包括：
+   - Typer (如果启用CLI接口)
+   - Rich (如果启用)
+   - PyYAML (如果启用)
+
+2. **开发依赖** - 在`[project.optional-dependencies].dev`中定义，包括：
+   - 测试工具：pytest, pytest-cov, coverage
+   - 代码质量：ruff, black, isort, mypy, pydocstyle, bandit
+   - 文档：sphinx, sphinx-rtd-theme
+   - 其他工具：pre-commit, gitpython
+
+## 依赖管理最佳实践
+
+- 使用虚拟环境隔离项目依赖
+- 明确指定依赖的版本要求
+- 在pyproject.toml中声明所有依赖
+- 使用Python 3.8+的现代依赖管理功能
+
+## 版本指定指南
+
+- 对于稳定的库使用版本范围（例如：`"requests>=2.25.0,<3.0.0"`）
+- 对于快速变化的库或有破坏性更新的库使用更严格的版本限制
+- 在`pyproject.toml`中使用`requires-python`指定支持的Python版本
+
+## 开发环境
+
+- 使用`pip install -e ".[dev]"`安装项目及其开发依赖
+- 通过pre-commit钩子确保代码质量检查在提交前运行
+- 使用tox进行多环境测试
+
+
+- 在`README.rst`中包含安装和开发环境设置指南

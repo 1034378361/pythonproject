@@ -1,0 +1,135 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - '.github/workflows/docs.yml'
+      - 'src/**/*.py'
+    tags-ignore:
+      - 'v*'  # 标签发布由publish.yml处理
+  pull_request:
+    branches: [main, master]
+    paths-ignore:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - '.github/workflows/docs.yml'
+      - 'src/**/*.py'
+  workflow_dispatch:
+    inputs:
+      python-version:
+        description: 'Python版本'
+        required: false
+        default: '3.12'
+        type: string
+      publish:
+        description: '是否发布到PyPI'
+        required: false
+        default: false
+        type: boolean
+      version:
+        description: '版本号 (如 1.0.0，仅在手动发布时使用)'
+        required: false
+        type: string
+
+# 权限配置
+permissions:
+  contents: write  # 允许创建发布和提交变更
+  id-token: write  # 允许发布到PyPI
+
+# 全局环境变量
+env:
+  SOURCE_DIR: src
+  TEST_DIR: tests
+  DEFAULT_PYTHON: '3.12'
+  MIN_PYTHON: '3.10'
+  COVERAGE_THRESHOLD: 85
+
+jobs:
+  # 测试矩阵 - 在多个Python版本上运行测试
+  matrix-test:
+    name: 测试 Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ['3.10', '3.11', '3.12']
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Show current directory
+      run: pwd && ls -R
+
+    - name: 设置 Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: pip
+
+    # 缓存pytest
+    - name: 缓存pytest
+      uses: actions/cache@v4
+      with:
+        path: |
+          .pytest_cache
+          ~/.cache/pytest
+        key: ${{ runner.os }}-pytest-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pytest-${{ matrix.python-version }}-
+          ${{ runner.os }}-pytest-
+
+    - name: 安装依赖
+      run: |
+        python -m pip install --upgrade pip
+        pip install -e ".[dev]"
+
+    - name: 运行测试
+      run: |
+        pytest --cov=${{ env.SOURCE_DIR }} --cov-report=term --cov-report=xml ${{ env.TEST_DIR }}/ -v
+
+    - name: 上传测试覆盖率报告
+      uses: codecov/codecov-action@v4.5.0
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: ./coverage.xml
+        fail_ci_if_error: false
+
+  # 使用可复用工作流进行代码质量检查
+  quality:
+    name: 代码质量检查
+    uses: ./.github/workflows/reusable-quality.yml
+    with:
+      python-version: '3.12'
+
+  # 使用可复用工作流进行类型检查
+  type_check:
+    name: 类型检查
+    uses: ./.github/workflows/reusable-type-check.yml
+    with:
+      python-version: '3.12'
+      full-report: true
+
+  # 使用可复用工作流进行文档构建
+  docs:
+    name: 文档构建
+    needs: matrix-test
+    uses: ./.github/workflows/reusable-docs.yml
+    with:
+      python-version: '3.12'
+      deploy: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
+
+  # 当手动触发发布时，使用可复用工作流更新变更日志
+  changelog:
+    name: 更新变更日志
+    if: github.event.inputs.publish == 'true' && github.event.inputs.version != ''
+    needs: [matrix-test, quality, type_check]
+    uses: ./.github/workflows/reusable-changelog.yml
+    with:
+      mode: 'incremental'
+      version: ${{ github.event.inputs.version }}

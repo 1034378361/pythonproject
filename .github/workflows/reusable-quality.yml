@@ -1,0 +1,106 @@
+name: 可复用代码质量检查
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: 'Python版本'
+        required: false
+        type: string
+        default: '3.12'
+    outputs:
+      ruff_failed:
+        description: 'Ruff检查是否失败'
+        value: ${{ jobs.quality.outputs.ruff_failed }}
+      format_failed:
+        description: '格式检查是否失败'
+        value: ${{ jobs.quality.outputs.format_failed }}
+      security_failed:
+        description: '安全检查是否失败'
+        value: ${{ jobs.quality.outputs.security_failed }}
+
+env:
+  SOURCE_DIR: src
+
+jobs:
+  quality:
+    name: 代码质量检查
+    runs-on: ubuntu-latest
+    outputs:
+      ruff_failed: ${{ steps.ruff_check.outputs.ruff_failed }}
+      format_failed: ${{ steps.ruff_format.outputs.format_failed }}
+      security_failed: ${{ steps.security_check.outputs.security_failed }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: 设置 Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: pip
+
+    # 缓存PDM
+    - name: 缓存PDM和依赖
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.pdm
+          .pdm-build
+          .venv
+        key: ${{ runner.os }}-pdm-quality-${{ hashFiles('pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pdm-quality-
+
+    # 缓存Ruff
+    - name: 缓存Ruff
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/ruff
+        key: ${{ runner.os }}-ruff-${{ hashFiles('pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-ruff-
+
+    - name: 安装 PDM
+      run: |
+        python -m pip install --upgrade pip
+        pip install pdm
+
+    - name: 使用 PDM 安装依赖
+      run: |
+        # 仅安装lint所需依赖
+        echo "使用lint依赖组"
+        pdm install -G lint
+
+    - name: 运行 Ruff 代码检查
+      id: ruff_check
+      run: |
+        pdm run ruff check . || echo "ruff_failed=true" >> $GITHUB_OUTPUT
+
+    - name: 运行 Ruff 格式检查
+      id: ruff_format
+      run: |
+        pdm run ruff format --check . || echo "format_failed=true" >> $GITHUB_OUTPUT
+
+    - name: 运行安全检查 (Bandit)
+      id: security_check
+      run: |
+        if pdm list | grep -q bandit; then
+          echo "运行Bandit安全检查"
+          pdm run bandit -r $SOURCE_DIR -x tests -c pyproject.toml || echo "security_failed=true" >> $GITHUB_OUTPUT
+        else
+          echo "项目未配置Bandit，跳过安全检查"
+        fi
+
+    - name: 上传Ruff和Bandit日志
+      if: always()
+      uses: actions/upload-artifact@v4.3.1
+      with:
+        name: quality-logs-${{ inputs.python-version }}
+        path: |
+          .cache/
+          .mypy_cache/
+        retention-days: 7

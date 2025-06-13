@@ -1,0 +1,78 @@
+---
+description: Specifies comprehensive testing practices using pytest within the 'tests' directory to ensure code reliability and quality.
+globs: ["tests/**/*.*"]
+alwaysApply: true
+---
+# Python测试实践
+
+## 项目测试配置
+
+项目使用pytest作为测试框架，具有以下配置：
+
+- 测试文件位于`tests/`目录中
+- 在`pyproject.toml`的`[tool.pytest.ini_options]`部分配置了测试选项
+- 使用`pytest-cov`进行覆盖率分析
+- 通过GitHub Actions自动化运行测试
+
+## 测试目录结构
+
+项目当前的测试结构如下：
+
+- `tests/`：测试根目录
+  - `conftest.py`：共享fixtures和配置
+  - `test_*.py`：各功能的测试模块
+  - `__init__.py`：确保测试可作为包导入
+
+## 命名约定
+
+按照项目配置，遵循以下命名约定：
+
+- 测试文件应以`test_`开头
+- 测试函数应以`test_`开头
+- 测试类应以`Test`开头
+- 测试名称应清晰描述被测试的功能或场景
+
+## 测试最佳实践
+
+- 编写单元测试，确保代码的各个部分独立工作
+- 为新功能和修复的bug创建测试
+- 使用fixtures共享测试设置和资源
+- 使用mock和patch隔离测试单元
+- 针对边界条件和错误情况编写测试
+
+## 代码覆盖率
+
+- 使用以下命令生成覆盖率报告：`pytest --cov=src tests/`
+- CI流程已配置为自动上传覆盖率报告到Codecov
+- 关注复杂逻辑和关键功能的测试覆盖
+
+## 执行测试
+
+```bash
+# 使用项目配置的命令运行测试
+make test
+
+# 或直接使用pytest
+python -m pytest
+
+# 运行带覆盖率报告的测试
+pytest --cov=src tests/
+
+# 运行特定测试
+pytest tests/test_specific_module.py
+```
+
+## 测试代码质量
+
+- 测试代码也应保持高质量，但可以适当放宽某些规则
+- 项目在mypy配置中允许测试文件有未类型化的定义
+- 测试应该清晰、可读，并专注于一个验证点
+
+## 测试数据管理
+
+- 使用fixtures或工厂创建测试数据
+- 将大型测试数据存储在单独的文件中
+- 使用临时目录和文件进行文件系统测试
+
+
+- 对于数据库测试，使用测试数据库或内存数据库

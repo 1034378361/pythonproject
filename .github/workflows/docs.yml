@@ -1,0 +1,47 @@
+name: 部署文档
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - '.github/workflows/docs.yml'
+      - 'src/**/*.py'  # 添加源代码文件，因为可能包含文档字符串
+  pull_request:
+    branches:
+      - main
+      - master
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - '.github/workflows/docs.yml'
+      - 'src/**/*.py'
+  workflow_dispatch:  # 允许手动触发
+    inputs:
+      environment:
+        description: '部署环境'
+        required: true
+        default: 'github-pages'
+        type: choice
+        options:
+          - github-pages
+          - production
+
+# 权限配置
+permissions:
+  contents: write  # 允许部署到GitHub Pages
+
+# 全局环境变量
+env:
+  PYTHON_DEFAULT: '3.12'
+
+jobs:
+  docs:
+    name: 构建和部署文档
+    uses: ./.github/workflows/reusable-docs.yml
+    with:
+      python-version: '3.12'
+      deploy: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}

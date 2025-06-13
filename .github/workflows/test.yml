@@ -1,0 +1,87 @@
+name: 测试
+
+on:
+  push:
+    branches-ignore: [main, master]  # 非主分支代码推送时测试
+  pull_request:
+    types: [opened, synchronize]  # PR创建和更新时触发
+    branches-ignore: [main, master]  # 非主分支PR时测试
+  workflow_dispatch:
+    inputs:
+      python-version:
+        description: '指定Python版本测试'
+        required: false
+        type: string
+
+# 权限配置
+permissions:
+  contents: read  # 只读权限即可
+  checks: write   # 允许上传测试结果
+  pull-requests: write  # 允许评论PR
+
+env:
+  SOURCE_DIR: src
+  TEST_DIR: tests
+  PYTHON_DEFAULT: "3.12"
+  MIN_PYTHON: "3.10"
+  COVERAGE_THRESHOLD: 85
+
+jobs:
+  # 使用可复用工作流进行测试
+  test:
+    name: 测试 Python ${{ inputs.python-version || '3.12' }}
+    uses: ./.github/workflows/reusable-test.yml
+    with:
+      python-version: ${{ inputs.python-version || '3.12' }}
+      coverage-threshold: 85
+
+  # # 使用可复用工作流进行代码质量检查
+  # quality:
+  #   name: 代码质量检查
+  #   uses: ./.github/workflows/reusable-quality.yml
+  #   with:
+  #     python-version: '3.12'
+
+  # # 使用可复用工作流进行类型检查
+  # type_check:
+  #   name: 类型检查
+  #   uses: ./.github/workflows/reusable-type-check.yml
+  #   with:
+  #     python-version: '3.12'
+
+  # 自动反馈测试/质量/类型检查结果
+  report:
+    name: 结果反馈
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检查测试/质量/类型检查结果
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const testFailed = "${{ needs.test.outputs.tests_failed }}" === "true";
+            # const ruffFailed = "${{ needs.quality.outputs.ruff_failed }}" === "true";
+            # const typeCheckFailed = "${{ needs.type_check.outputs.type_check_failed }}" === "true";
+
+            let msg = '';
+            if (testFailed) msg += '❌ 单元测试未通过\n';
+            # if (ruffFailed) msg += '❌ 代码质量检查未通过 (Ruff)\n';
+            # if (typeCheckFailed) msg += '❌ 类型检查未通过 (mypy)\n';
+
+            if (msg) {
+              await github.rest.issues.createComment({
+                issue_number: context.payload.pull_request.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `CI 检查结果:\n${msg}`
+              });
+              core.setFailed(msg);
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.payload.pull_request.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: '✅ 所有CI检查均通过！'
+              });
+            }
+

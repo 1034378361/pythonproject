@@ -1,0 +1,114 @@
+name: 可复用类型检查
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: 'Python版本'
+        required: false
+        type: string
+        default: '3.12'
+      full-report:
+        description: '生成完整报告'
+        required: false
+        type: boolean
+        default: false
+    outputs:
+      type_check_failed:
+        description: '类型检查是否失败'
+        value: ${{ jobs.type_check.outputs.type_check_failed }}
+
+env:
+  SOURCE_DIR: src
+
+jobs:
+  type_check:
+    name: 类型检查
+    runs-on: ubuntu-latest
+    outputs:
+      type_check_failed: ${{ steps.mypy_check.outputs.mypy_failed }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: 设置Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: pip
+
+    # 缓存PDM
+    - name: 缓存PDM和依赖
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.pdm
+          .pdm-build
+          .venv
+        key: ${{ runner.os }}-pdm-mypy-${{ hashFiles('pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pdm-mypy-
+
+    # 缓存mypy
+    - name: 缓存mypy
+      uses: actions/cache@v4
+      with:
+        path: |
+          .mypy_cache
+          ~/.cache/mypy
+        key: ${{ runner.os }}-mypy-${{ hashFiles('pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-mypy-
+
+    - name: 安装 PDM
+      run: |
+        python -m pip install --upgrade pip
+        pip install pdm
+
+    - name: 使用 PDM 安装依赖
+      run: |
+        # 仅安装类型检查所需依赖
+        echo "使用typing依赖组"
+        pdm install -G typing
+
+
+    - name: 类型检查（Mypy）
+      id: mypy_check
+      run: |
+        if [ "${{ inputs.full-report }}" == "true" ]; then
+          # 生成完整报告
+          mkdir -p mypy-report
+          pdm run mypy --config-file pyproject.toml \
+            --show-error-codes \
+            --pretty \
+            --warn-redundant-casts \
+            --warn-unused-ignores \
+            --warn-unreachable \
+            --html-report mypy-report \
+            $SOURCE_DIR/ || echo "mypy_failed=true" >> $GITHUB_OUTPUT
+        else
+          # 基本检查
+          pdm run mypy --config-file pyproject.toml \
+            --show-error-codes \
+            --pretty \
+            $SOURCE_DIR/ || echo "mypy_failed=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: 上传类型检查报告
+      if: inputs.full-report == true
+      uses: actions/upload-artifact@v4.3.1
+      with:
+        name: mypy-report
+        path: mypy-report/
+        retention-days: 7
+
+    - name: 上传类型检查缓存
+      if: always()
+      uses: actions/upload-artifact@v4.3.1
+      with:
+        name: mypy-cache-${{ inputs.python-version }}
+        path: |
+          .mypy_cache/
+        retention-days: 7
