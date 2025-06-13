@@ -5,6 +5,10 @@
 此项目遵循[语义化版本](https://semver.org/lang/zh-CN/)，并使用[约定式提交](https://www.conventionalcommits.org/zh-hans/)格式。
 ## 未发布 (2025-06-13)
 
+### 文档更新
+
+* 更新 CHANGELOG GitHub (73d9f64)
+
 ### 其他变更
 
 * Dev (#1) (fc95ed5)
