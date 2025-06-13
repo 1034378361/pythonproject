@@ -94,7 +94,7 @@ jobs:
         pytest --cov=${{ env.SOURCE_DIR }} --cov-report=term --cov-report=xml ${{ env.TEST_DIR }}/ -v
 
     - name: 上传测试覆盖率报告
-      uses: codecov/codecov-action@v4.5.0
+      uses: codecov/codecov-action@v5.4.3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: ./coverage.xml
